@@ -1,0 +1,13 @@
+{
+  "note": "Reference vectors produced by tests/c_harness.c which re-implements the exact MEGA crypto from megatools oldmega.c using OpenSSL. Do not edit by hand.",
+  "password_key_hex": {
+    "Tr0ub4dor&3": "3b5a21b5d5e4e4fd6c31782011841c70",
+    "a": "6dd9f7ecb24689c435a14f7c51da434d"
+  },
+  "username_hash_b64url": {
+    "megamendung.test+mega1@gmail.com": "odqVXg5DOnc",
+    "megamendung.test+mega1@GMAIL.COM": "u7EgxiOiEu8"
+  },
+  "master_key_encrypted_under_pwkey_1": "T9fGd98_ukSMBJnJP_l_oA",
+  "challenge_block_encrypted_under_pwkey_1": "OxsW7_7aBrUlJ33Z_bRmxjsbFu_-2ga1JSd92f20ZsY"
+}

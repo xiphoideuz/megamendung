@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "megamendung"
+version = "2.0.0"
+description = "One-stop MEGA account manager (rclone-config style): enlist, create, manage and keep-alive multiple MEGA accounts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "megamendung contributors" }]
+keywords = ["mega", "mega.nz", "rclone", "cloud", "storage", "accounts"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Topic :: System :: Archiving :: Backup",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "cryptography>=41",
+    "requests>=2.31",
+    "pillow>=10.0",
+    "websocket-client>=1.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+megamendung = "megamendung.cli:main"
+
+[tool.setuptools]
+packages = ["megamendung"]
+
+[tool.setuptools.package-data]
+megamendung = ["py.typed"]

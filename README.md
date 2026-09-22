@@ -1,237 +1,220 @@
-# MEGA Manager
-Cloud syncing manager for multiple <a href="https://mega.nz/">MEGA</a> cloud storage accounts with syncing, data gathering, compresssion and optimization capabilities. 
+# megamendung
 
-MEGA Manager allows MEGA users to manage and maintain multiple MEGA accounts all in one place! MEGA Manager is the only app that allows syncing capabilities on multiple MEGA accounts. Included in MEGA Manager are in-depth syncing capabilities, file optimization and compression, remote and local account data output, a Command Line Interface, and the ability to sync multiple remote locations to multiple local locations in one account.
+One-stop **MEGA account manager**, rclone-config style.
 
-* Allows users to manage multiple MEGA accounts all in one place
-* Syncing capabilites that allows for syncing several remote and local file locations in the same account
-* Optimization and compression capabilities for video and image file formats
-* Output remote and local file data for each account
-* Command Line Interface (CLI) for all the above features
+`megamendung` is the modernized successor of the abandoned
+[mega_manager](https://github.com/szmania/mega_manager) fork
+(`xiphoideuz/megamendung`). It manages *multiple* [mega.nz](https://mega.nz)
+accounts — enlisting existing ones, signing up new ones via plus-alias
+emails, keeping them alive, and running the classic mega_manager storage
+tools (sync, upload, download, df, ls, mkdir, rm, compress) — all driven by
+[rclone](https://rclone.org)'s first-class `mega` backend.
 
-#### A little about MEGA.nz...
-##### <a href="https://mega.nz/">https://mega.nz/</a>
-MEGA makes secure cloud storage simple. Create an account and get 50 GB free on MEGA's end-to-end encrypted cloud collaboration platform today!
+> **Why rclone?** rclone has a robust, maintained MEGA backend (encryption,
+> chunked uploads, resume) and already handles the hard storage protocol.
+> mega_manager's Python port of that protocol was unmaintained and broken.
 
-<img src="http://cdn2.ubergizmo.com/wp-content/uploads/2013/11/mega-launch.png" alt="MEGA Cloud Sync" height="400">
+## Requirements
 
+- Python >= 3.10
+- [rclone](https://rclone.org/downloads/) >= 1.60 on `PATH`
+- `ffmpeg` (only for `compress --videos`), Pillow (bundled) for `compress`
+- Network access to `g.api.mega.co.nz` for account registration
 
-## Usage
-### Arguments
-`--compress`
+Install with `pip install .` (or `pip install -e .` for development).
 
-Compresses all images AND video files in local account locations.
+## Setup
 
-`--compress-images`
+Every command except `config` needs at least one configured account.
 
-Compresses all images in local account locations.
+### 1. Set the base email (for creating alias accounts)
 
-`--compress-videos`
+Plus-alias signups derive email addresses like `me+mega1@gmail.com` from a
+base address you own:
 
-Compresses all videos in local account locations.
+    megamendung config you@example.com --base-name mega
 
-`--config <path>`
+All settings live in `~/.config/megamendung/megamendung.conf`.
 
-Set MEGA Manager config file location. Default: "\<home\>/.mega_manager/mega_manager.cfg".
+### 2a. Enlist an account you already have
 
-`--download`
+Import it straight from your existing rclone config
+(`~/.config/rclone/rclone.conf`, the one with `[mega1] type = mega`):
 
-Download from MEGA account remote locations to corresponding local locations.
+    megamendung accounts import --rclone-conf ~/.config/rclone/rclone.conf
 
-`--download-speed <int>`
+or register credentials by hand:
 
-Set total download speed limit in Kb.
+    megamendung accounts add NAME EMAIL PASSWORD [--verified]
 
-`--log <loglevel>`
+or from a credentials file, one `<email> <password>` per line (`#` for
+comments):
 
-Set log level. ie: "INFO", "WARN", "DEBUG", etc... Default: "INFO".
+    megamendung accounts import --credentials-file ./creds.txt
 
-`--profile-output-data`
+### 2b. Create brand-new accounts (auto-signup)
 
-This will output all profile/account data to standard output.
+`megamendung` implements MEGA's public registration API (the same flow as
+`megareg`) and creates non-verified accounts under your base email using
+plus-aliases. A random password is generated per account.
 
-`--remove-oldest-file-version`
+    megamendung accounts create --count 3
 
-This will remove outdated files locally or remotely that are older than their local/remote counterpart (syncing action).
+MEGA emails a "MEGA Signup" confirmation link to each new address. Paste it
+to finish each signup (the registration state is saved automatically):
 
-`--remove-remote`
+    megamendung accounts verify mega2 'https://mega.nz/#confirm<signup_key>'
 
-If set remote files that have no corresponding local file will be removed.
+## Managing accounts
 
-`--sync`
+    megamendung accounts list                # configured + detected accounts
+    megamendung accounts list --json         # machine-readable
+    megamendung accounts show mega1          # details for one account
+    megamendung accounts remove mega1        # drop registry entry + rclone remote
 
-If true, local and remote files for accounts will be synced. Equivalent to using arguments "--download", "--remove_local",
-"--remote-outdated", "--remove_remote" and "--upload" all at once.
+### Keep accounts alive (cron-friendly)
 
-`--upload`
+MEGA can deactivate accounts you don't log into. `refresh` performs a real
+login against each account (via rclone's `mega` backend) and exits non-zero
+if any account fails:
 
-If set files will be uploaded to MEGA account.
+    megamendung refresh                       # all accounts, 2s between logins
+    megamendung refresh mega1 mega2           # only named accounts
 
-`--upload-speed <int>`
+Example cron line (daily at 06:00):
 
-Set total upload speed limit in Kb.
+    0 6 * * * /usr/local/bin/megamendung refresh >> /var/log/megamendung-refresh.log 2>&1
 
+## Files
 
-### Examples
+    megamendung ls   mega1 /Root/photos
+    megamendung ls -R mega1 /Root
 
-Calling the package directly will suffice. Otherwise one could call "megamanger\__main__.py"
+## Storage usage
 
-`megamanager --upload --up-speed 500`
+    megamendung df                            # used / free / total per account
 
-Upload files AND limit total upload speed to 500kb.
+## Upload / download
 
-`megamanager\__main__.py --sync --down-speed 750`
+    megamendung upload   mega1 ./photos /Root/photos
+    megamendung download mega1 /Root/archive /data/archive
 
-Sync files AND limit total download speed to 750kb.
+## Sync
 
-`megamanager --remove-oldest-file-version --config "dir\megamanager.cfg"`
+`push` mirrors local → remote, `pull` mirrors remote → local,
+`both` does two-way synchronized sync:
 
-Set config file to be "dir\mega_manger.cfg" AND remove outdated local and remote files
+    megamendung sync mega1 /data/camera /Root/camera --mode push
+    megamendung sync mega1 /data/camera /Root/camera --mode both
 
+### Cron sync jobs
 
+Define jobs in `megamendung.conf`:
 
-### MEGA Manager Config File Format
-(by default lives in \<home\>/.mega_manager/mega_manger.cfg, unless specified otherwise)
-Command line arguments override corresponding config values. (ie: --compress via cli will override "COMPRESS_ALL=False" in config file) 
+    [sync.camera]
+    account = mega1
+    local   = /data/camera
+    remote  = /Root/camera
+    mode    = push
 
-```
-[ACTIONS]
-COMPRESS_ALL=True
-COMPRESS_IMAGES=False
-COMPRESS_VIDEOS=False
-DOWNLOAD=False
-UPLOAD=False
-SYNC=True
-LOCAL_IS_TRUTH=True
+then run them all (or a subset) with:
 
-[PROPERTIES]
-LOG_LEVEL="DEBUG"
-LOG_RETENTION="midnight"
-LOG_RETNETION_BACKUP_COUNT=5
-MEGA_MANAGER_CONFIG_DIR_PATH="{HOME_DIRECTORY}{sep}.mega_manager"
-MEGA_MANAGER_LOG_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}{sep}logs{sep}mega_manager_log.log"
-MEGA_MANAGER_CONFIG_DIR_DATA_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}{sep}data"
-MEGA_MANAGER_STDOUT_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}{sep}logs{sep}mega_stdout.log"
-MEGA_MANAGER_STDERR_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}{sep}logs{sep}mega_stderr.log"
-MEGA_MANAGER_OUTPUT_PROFILE_DATA_PATH=""
-SLEEP_TIME_BETWEEN_RUNS_SECONDS=300
-REMOVE_OLDEST_FILE_VERSION=False
-PROCESS_SET_PRIORITY_TIMEOUT=60
+    megamendung sync-jobs
+    megamendung sync-jobs camera
 
-[IMAGE_COMPRESSION]
-COMPRESSED_IMAGES_FILE_PATH ="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}{sep}compressed_images.npy"
-UNABLE_TO_COMPRESS_IMAGES_FILE_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}{sep}unable_to_compress_images.npy"
-COMPRESSION_IMAGE_EXTENSIONS=["jpg","jpeg","png"]
-IMAGE_TEMP_FILE_EXTENSIONS=["compressimages-backup", "unoptimized", "tmp"]
-COMPRESSION_JPEG_QUALITY_PERCENTAGE=60
+## Compress
 
-[VIDEO_COMPRESSION]
-COMPRESSED_VIDEOS_FILE_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}{sep}compressed_videos.npy"
-UNABLE_TO_COMPRESS_VIDEOS_FILE_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}{sep}unable_to_compress_videos.npy"
-COMPRESSION_VIDEO_EXTENSIONS=["avi","flv","m4v","mkv","mp4","mpeg","mpg","wmv"]
-COMPRESSION_FFMPEG_VIDEO_PRESET="slow"
-FFMPEG_PROCESS_PRIORITY_CLASS="HIGH_PRIORITY_CLASS"
-FFMPEG_LOG_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}{sep}logs{sep}ffmpeg.log"
-FFMPEG_THREADS=4
+Optimize JPEGs (Pillow) and videos (ffmpeg/x264) in place, tracking progress
+in `state.json` so files are only processed once:
 
-[REMOTE]
-REMOVED_REMOTE_FILES_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}{sep}removed_remote_files.npy"
+    megamendung compress /data/media
+    megamendung compress /data/media --videos --crf 28
+    megamendung compress /data/media --images --max-dimension 2048 --quality 80
+    megamendung compress /data/media --force     # reprocess everything
 
-[MEGATOOLS]
-MEGATOOLS_PROCESS_PRIORITY_CLASS="HIGH_PRIORITY_CLASS"
-MEGATOOLS_LOG_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}{sep}logs{sep}mega_tools.log"
+## Web GUI (Cloudflare Worker)
 
-[MEGA]
-MEGA_DOWNLOAD_SPEED=200
-MEGA_UPLOAD_SPEED=200
-
-[PROFILE_0]
-profile_name=Pictures - email@email.com
-username=email@email.com
-password=mypassword
-local_path_0=/mnt/sda1/pictures
-remote_path_0=/Root/pictures
-
-[PROFILE_1]
-profile_name=Videos & Games - email2@email.com
-username=email2@email.com
-password=mypassword2
-local_path_0=/mnt/sda1/videos
-remote_path_0=/Root/videos
-local_path_1=/mnt/sda1/games
-remote_path_1=/Root/games
-```
-
-Paths are now operating system agnostic (eg: can process both `\\` and `/`).
-Example:
+`web/` ships a WhatsApp-Web-style GUI: a **Cloudflare Worker** (perpetual,
+free) serves a browser dashboard and relays commands to your machine over
+WebSocket. rclone/ffmpeg still run on your machine - the Worker never does
+storage work, so all features (including video compression) keep working.
 
 ```
-[ACTIONS]
-COMPRESS_ALL=True
-COMPRESS_IMAGES=False
-COMPRESS_VIDEOS=False
-DOWNLOAD=False
-UPLOAD=False
-SYNC=True
-LOCAL_IS_TRUTH=True
-
-[PROPERTIES]
-LOG_LEVEL="DEBUG"
-LOG_RETENTION="midnight"
-LOG_RETNETION_BACKUP_COUNT=5
-MEGA_MANAGER_CONFIG_DIR_PATH="{HOME_DIRECTORY}/.mega_manager"
-MEGA_MANAGER_LOG_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}/logs/mega_manager_log.log"
-MEGA_MANAGER_CONFIG_DIR_DATA_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}/data"
-MEGA_MANAGER_STDOUT_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}/logs/mega_stdout.log"
-MEGA_MANAGER_STDERR_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}/logs/mega_stderr.log"
-MEGA_MANAGER_OUTPUT_PROFILE_DATA_PATH=""
-SLEEP_TIME_BETWEEN_RUNS_SECONDS=300
-REMOVE_OLDEST_FILE_VERSION=False
-PROCESS_SET_PRIORITY_TIMEOUT=60
-
-[IMAGE_COMPRESSION]
-COMPRESSED_IMAGES_FILE_PATH ="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}/compressed_images.npy"
-UNABLE_TO_COMPRESS_IMAGES_FILE_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}/unable_to_compress_images.npy"
-COMPRESSION_IMAGE_EXTENSIONS=["jpg","jpeg","png"]
-IMAGE_TEMP_FILE_EXTENSIONS=["compressimages-backup", "unoptimized", "tmp"]
-COMPRESSION_JPEG_QUALITY_PERCENTAGE=60
-
-[VIDEO_COMPRESSION]
-COMPRESSED_VIDEOS_FILE_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}/compressed_videos.npy"
-UNABLE_TO_COMPRESS_VIDEOS_FILE_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}/unable_to_compress_videos.npy"
-COMPRESSION_VIDEO_EXTENSIONS=["avi","flv","m4v","mkv","mp4","mpeg","mpg","wmv"]
-COMPRESSION_FFMPEG_VIDEO_PRESET="slow"
-FFMPEG_PROCESS_PRIORITY_CLASS="HIGH_PRIORITY_CLASS"
-FFMPEG_LOG_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}/logs/ffmpeg.log"
-FFMPEG_THREADS=4
-
-[REMOTE]
-REMOVED_REMOTE_FILES_PATH="{MEGA_MANAGER_CONFIG_DIR_DATA_PATH}/removed_remote_files.npy"
-
-[MEGATOOLS]
-MEGATOOLS_PROCESS_PRIORITY_CLASS="HIGH_PRIORITY_CLASS"
-MEGATOOLS_LOG_PATH="{MEGA_MANAGER_CONFIG_DIR_PATH}/logs/mega_tools.log"
-
-[MEGA]
-MEGA_DOWNLOAD_SPEED=200
-MEGA_UPLOAD_SPEED=200
-
-[PROFILE_0]
-profile_name=Pictures - email@email.com
-username=email@email.com
-password=mypassword
-local_path_0=/mnt/sda1/pictures
-remote_path_0=/Root/pictures
-
-[PROFILE_1]
-profile_name=Videos & Games - email2@email.com
-username=email2@email.com
-password=mypassword2
-local_path_0=/mnt/sda1/videos
-remote_path_0=/Root/videos
-local_path_1=/mnt/sda1/games
-remote_path_1=/Root/games
+Browser (Cloudflare)  <──wss──>  Worker RelayDO (pairing per pair_id)  <──wss──>  megamendung connect
 ```
 
+Flow:
 
+1. Deploy the Worker:
 
+       cd web
+       npm install
+       npm run dev        # local preview (default port may conflict; use --port 8790)
+       npm run deploy     # wrangler deploy
+
+   (create the KV namespace first with `wrangler kv namespace create PAIRS`
+   and paste its id into `web/wrangler.toml`, or delete the binding).
+
+2. On the machine that runs rclone, print a pairing code:
+
+       megamendung pair
+
+3. Connect the machine to the Worker (dials *out* - no open ports):
+
+       megamendung connect https://<your-worker>.workers.dev
+
+4. Open `https://<your-worker>.workers.dev` in the browser, paste the same
+   pairing code, and drive the Dashboard (accounts + one-click refresh),
+   Files, Sync, Accounts (create/verify) and Compress panels.
+
+The pairing code is the credential for the pair room: the first `connect`
+binds the room (trust-on-first-use) and only browsers presenting the same
+code can control it. Forget the code on the device to re-pair.
+
+The CLI stays fully functional standalone; the GUI is purely additive. The
+relay protocol is documented in `megamendung/connect.py` and `web/src/relay.ts`.
+
+## Configuration
+
+`~/.config/megamendung/megamendung.conf` — rclone-style INI:
+
+    [settings]
+    base_email     = you@example.com
+    base_name      = mega
+    last_alias_index = 2
+
+    [account.mega1]
+    email          = you+mega1@example.com
+    password       = <rclone-obscured>
+    verified       = true
+    created        = 2026-09-22T12:00:00Z
+    last_login     = 2026-09-22T18:30:00Z
+    last_status    = ok
+    notes          =
+
+    [sync.camera]
+    account        = mega1
+    local          = /data/camera
+    remote         = /Root/camera
+    mode           = push
+
+Passwords are stored **rclone-obscured** (as `pass` in an rclone remote
+config would be). The rclone remotes megamendung manages live in its own
+config, `~/.config/megamendung/rclone.conf` — your personal
+`~/.config/rclone/rclone.conf` is left untouched.
+
+Override the config directory for any command with the
+`MEGAMENDUNG_CONFIG_DIR` environment variable, or point at explicit files
+with `--config` and `--rclone-config` global flags.
+
+## Ported from mega_manager
+
+- sync (`push`/`pull`/`both`), upload, download, df, ls, mkdir, rm
+- image compression (Pillow) and video compression (ffmpeg)
+- multiple-account registry
+
+The original codebase is preserved under `legacy/megamanager/` for reference.
+
+## License
+
+GNU General Public License v3 or later — see `LICENSE`.
