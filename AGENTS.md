@@ -12,16 +12,19 @@ manages multiple MEGA account via rclone:
   plus-alias signup (`accounts create` + `accounts verify`), keep them alive
   (`refresh`), and manage files (`df`, `ls`, `mkdir`, `rm`, `upload`,
   `download`, `sync`, `sync-jobs`, `compress`).
-- `web/` is a Cloudflare Workers GUI: a WhatsApp-Web-style relay. The GUI is
-  deployed to a Worker; the CLI runs `megamendung connect <worker-url>` to
-  dial out and serve commands from the browser.
+
+The web GUI lives in a separate repository
+([xiphoideuz/megamendung-gui](https://github.com/xiphoideuz/megamendung-gui)):
+a Cloudflare Worker relay + dashboard. This CLI dials out to it with
+`megamendung connect <worker-url>`; pairing codes come from
+`megamendung pair`.
+
 - `legacy/` holds the original mega_manager source (reference only).
 
 ## Layout
 
 - `megamendung/` - the Python package (CLI).
 - `tests/` - pytest suite for the CLI (offline; independent WS server stub).
-- `web/` - TypeScript Cloudflare Worker project (relay + SPA).
 - `legacy/` - original mega_manager (do not build/package).
 
 ## Commands
@@ -33,18 +36,9 @@ venv):
     python3 -m compileall megamendung tests
     pip install -e .                    # in a venv, not system pip
 
-Web (Node 20+):
+Web GUI (not in this repo - see xiphoideuz/megamendung-gui):
 
-    cd web && npm install
-    npm run test                        # vitest (relay-core unit tests)
-    npm run typecheck                   # tsc --noEmit
-    npm run dev                         # wrangler dev (default port may conflict; use --port 8790)
-    npm run deploy                      # wrangler deploy
-
-End-to-end integration (real Worker + real CLI):
-
-    cd web && npx wrangler dev --port 8790 &
-    python3 /tmp/opencode/webint/test_webint.py   # uses /tmp/opencode/venv
+    npm install && npm test && npm run typecheck && npm run dev -- --port 8790
 
 ## Conventions
 
@@ -64,6 +58,5 @@ End-to-end integration (real Worker + real CLI):
 
 - Do not add comments to code unless asked.
 - Keep the CLI fully functional without the Worker (the GUI is additive).
-- `wrangler dev` workerd binary binds the *Node proxy*, which can die with the
-  launching shell; start it with `setsid nohup ... < /dev/null & disown` for
-  integration runs. Another local project (`nummon`) owns port 8787.
+- Default `wrangler dev` port is 8787, which is owned locally by the `nummon`
+  project on this machine - use `--port 8790` for GUI integration runs.

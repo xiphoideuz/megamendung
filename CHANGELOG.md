@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1 (2026-09-23)
+### Changed
+- Split the web GUI out of this repo into the separate
+  `xiphoideuz/megamendung-gui` repository (Cloudflare Worker + SPA). The CLI
+  keeps `pair`/`connect`; see `megamendung-gui` for deploying the dashboard.
+
 ## Version 2.0.0 (2026-09-22)
 ### Added
 - Complete rewrite as a modern CLI (`megamendung`), rclone-config style.

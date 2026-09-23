@@ -132,47 +132,39 @@ in `state.json` so files are only processed once:
     megamendung compress /data/media --images --max-dimension 2048 --quality 80
     megamendung compress /data/media --force     # reprocess everything
 
-## Web GUI (Cloudflare Worker)
+## Web GUI (separate repo)
 
-`web/` ships a WhatsApp-Web-style GUI: a **Cloudflare Worker** (perpetual,
-free) serves a browser dashboard and relays commands to your machine over
-WebSocket. rclone/ffmpeg still run on your machine - the Worker never does
-storage work, so all features (including video compression) keep working.
+`megamendung-gui` is a separate repository
+([github.com/xiphoideuz/megamendung-gui](https://github.com/xiphoideuz/megamendung-gui)):
+a **Cloudflare Worker** (perpetual, free) that serves a WhatsApp-Web-style
+browser dashboard and relays commands to your machine over WebSocket.
+rclone/ffmpeg still run on your machine - the Worker never does storage work,
+so all features (including video compression) keep working. Deploy
+instructions live in that repo.
 
 ```
 Browser (Cloudflare)  <──wss──>  Worker RelayDO (pairing per pair_id)  <──wss──>  megamendung connect
 ```
 
-Flow:
+On this machine:
 
-1. Deploy the Worker:
-
-       cd web
-       npm install
-       npm run dev        # local preview (default port may conflict; use --port 8790)
-       npm run deploy     # wrangler deploy
-
-   (create the KV namespace first with `wrangler kv namespace create PAIRS`
-   and paste its id into `web/wrangler.toml`, or delete the binding).
-
-2. On the machine that runs rclone, print a pairing code:
+1. Print a pairing code:
 
        megamendung pair
 
-3. Connect the machine to the Worker (dials *out* - no open ports):
+2. Connect to the deployed Worker (dials *out* - no open ports):
 
        megamendung connect https://<your-worker>.workers.dev
 
-4. Open `https://<your-worker>.workers.dev` in the browser, paste the same
+3. Open `https://<your-worker>.workers.dev` in the browser, paste the same
    pairing code, and drive the Dashboard (accounts + one-click refresh),
    Files, Sync, Accounts (create/verify) and Compress panels.
 
 The pairing code is the credential for the pair room: the first `connect`
 binds the room (trust-on-first-use) and only browsers presenting the same
-code can control it. Forget the code on the device to re-pair.
-
-The CLI stays fully functional standalone; the GUI is purely additive. The
-relay protocol is documented in `megamendung/connect.py` and `web/src/relay.ts`.
+code can control it. Forget the code on the device to re-pair. The relay
+protocol is documented in `megamendung/connect.py` and in the megamendung-gui
+repo.
 
 ## Configuration
 
