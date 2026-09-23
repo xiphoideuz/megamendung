@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 
 from .config import Config, utcnow
-from .rclone_backend import Rclone, RcloneError, sanitize_remote_name
+from .rclone_backend import Rclone, RcloneError
 from .accounts import _reveal, _provision, AccountError
 
 
@@ -51,7 +51,7 @@ def refresh_accounts(
     for index, account in enumerate(selected):
         if index:
             time.sleep(sleep)  # respect MEGA's login rate limit
-        remote = sanitize_remote_name(account.name)
+        remote = rclone.remote_name(account.name)
         try:
             if provision:
                 _provision(rclone, account, _reveal(rclone, account.password))

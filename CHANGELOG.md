@@ -1,6 +1,12 @@
 # Changelog
 
 ## 2.0.1 (2026-09-23)
+### Added
+- Rclone remote prefix: namespace the remotes megamendung creates in its
+  rclone.conf via `remote_prefix` in `[settings]`, a
+  `MEGAMENDUNG_RCLONE_PREFIX` env var, or a `<config-dir>/.env` file
+  (precedence in that order).
+
 ### Changed
 - Split the web GUI out of this repo into the separate
   `xiphoideuz/megamendung-gui` repository (Cloudflare Worker + SPA). The CLI

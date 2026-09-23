@@ -79,7 +79,7 @@ def scan_rclone_conf(path: Path) -> list[DetectedRemote]:
 
 def _provision(rclone: Rclone, account: Account, plaintext_password: str) -> None:
     """Create or refresh the rclone mega remote for an account."""
-    name = sanitize_remote_name(account.name)
+    name = rclone.remote_name(account.name)
     try:
         existing = rclone.listremotes()
         if name in existing:
@@ -128,7 +128,8 @@ def list_accounts(cfg: Config, rclone: Rclone) -> list[dict]:
         }
         rows.append(row)
     for detected in scan_rclone_conf(rclone.config_path):
-        if detected.name in cfg.accounts:
+        managed = {rclone.remote_name(a.name) for a in cfg.accounts.values()}
+        if detected.name in managed:
             continue
         rows.append(
             {
@@ -185,9 +186,11 @@ def import_accounts(
     imported: list[Account] = []
     if rclone_conf is not None:
         for remote in scan_rclone_conf(rclone_conf):
-            if remote.name in cfg.accounts:
-                continue
             name = sanitize_remote_name(remote.name)
+            if rclone.prefix and name.startswith(rclone.prefix):
+                name = name[len(rclone.prefix):]
+            if name in cfg.accounts:
+                continue
             obscured = store_password(rclone, remote.password) if remote.password else ""
             if not obscured:
                 raise AccountError(f"remote {remote.name} has no password")
@@ -314,7 +317,7 @@ def verify_account(
 def remove_account(cfg: Config, rclone: Rclone, *, name: str) -> None:
     account = cfg.account(name)
     pending = _load_pending(cfg)
-    rclone.config_delete(sanitize_remote_name(account.name))
+    rclone.config_delete(rclone.remote_name(account.name))
     cfg.accounts.pop(account.name, None)
     pending.pop(account.name, None)
     cfg.save()
@@ -328,7 +331,7 @@ def show_account(cfg: Config, rclone: Rclone, *, name: str) -> dict:
         plain = _reveal(rclone, account.password)
     except RcloneError:
         pass
-    remote = sanitize_remote_name(account.name)
+    remote = rclone.remote_name(account.name)
     return {
         "name": account.name,
         "email": account.email,

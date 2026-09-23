@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from . import accounts, manage, refresh
-from .config import Config
+from .config import Config, resolve_remote_prefix
 from .pair import PairCode
 from .rclone_backend import Rclone, RcloneError
 
@@ -390,7 +390,9 @@ class _Agent:
             ftype = frame.get("type")
             if ftype == "hello" and frame.get("reply"):
                 self.log_line("paired: connected to relay (device online)")
-                self.dispatcher = _build_dispatch(_load_config(), _load_rclone())
+                cfg = _load_config()
+                rclone = _load_rclone(resolve_remote_prefix(cfg))
+                self.dispatcher = _build_dispatch(cfg, rclone)
                 threading.Thread(target=self._heartbeat_loop, name="megamendung-ping", daemon=True).start()
                 self._thread.start()
                 continue
@@ -428,10 +430,10 @@ def _load_config():
     return Config.load(default_config_path())
 
 
-def _load_rclone():
+def _load_rclone(prefix: str = ""):
     from .paths import default_rclone_config_path
 
-    return Rclone(config_path=default_rclone_config_path())
+    return Rclone(config_path=default_rclone_config_path(), prefix=prefix)
 
 
 # ---------------------------------------------------------------------------

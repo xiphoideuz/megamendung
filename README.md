@@ -173,6 +173,7 @@ repo.
     [settings]
     base_email     = you@example.com
     base_name      = mega
+    remote_prefix  =              # optional: namespace for created rclone remotes
     last_alias_index = 2
 
     [account.mega1]
@@ -194,6 +195,22 @@ Passwords are stored **rclone-obscured** (as `pass` in an rclone remote
 config would be). The rclone remotes megamendung manages live in its own
 config, `~/.config/megamendung/rclone.conf` — your personal
 `~/.config/rclone/rclone.conf` is left untouched.
+
+### Rclone remote prefix
+
+Accounts become rclone remotes named after the account (e.g. `mega1`). To
+namespace them in `~/.config/megamendung/rclone.conf` (useful when mixing
+megamendung with other tooling on the same config), set a prefix, in order of
+precedence:
+
+1. the `MEGAMENDUNG_RCLONE_PREFIX` environment variable,
+2. a `MEGAMENDUNG_RCLONE_PREFIX=...` line in `<config-dir>/.env` (a plain
+   `KEY=VALUE` file loaded at startup),
+3. `remote_prefix = ...` in `[settings]`.
+
+Every managed remote is then created and addressed as
+`<prefix><account>` (e.g. prefix `mg_` → remote `mg_mega1`) for operations,
+`refresh`, and `remove`. Account names in the registry stay unprefixed.
 
 Override the config directory for any command with the
 `MEGAMENDUNG_CONFIG_DIR` environment variable, or point at explicit files

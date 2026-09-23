@@ -25,9 +25,15 @@ class Rclone:
         self,
         binary: str = "rclone",
         config_path: Path | None = None,
+        prefix: str = "",
     ) -> None:
         self.binary = binary
         self.config_path = Path(config_path or default_rclone_config_path())
+        self.prefix = prefix
+
+    def remote_name(self, name: str) -> str:
+        """The rclone remote section name for an account, honouring the prefix."""
+        return sanitize_remote_name(self.prefix + name)
 
     # -- low level --------------------------------------------------------
 

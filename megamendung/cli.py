@@ -29,7 +29,7 @@ from .accounts import (
     show_account,
     verify_account,
 )
-from .config import Config
+from .config import Config, resolve_remote_prefix
 from .connect import ConnectError, HEARTBEAT_SECONDS, run_connect
 from .manage import (
     df,
@@ -516,7 +516,7 @@ def main(argv: list[str] | None = None) -> int:
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     cfg = Config.load(config_path)
-    rclone = Rclone(config_path=rclone_config_path)
+    rclone = Rclone(config_path=rclone_config_path, prefix=resolve_remote_prefix(cfg))
 
     handlers = {
         "config": cmd_config,

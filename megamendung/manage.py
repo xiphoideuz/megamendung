@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 from .config import Config
-from .rclone_backend import Rclone, RcloneError, sanitize_remote_name
+from .rclone_backend import Rclone, RcloneError
 
 
 def human_bytes(n: int | None) -> str:
@@ -27,7 +27,7 @@ def df(cfg: Config, rclone: Rclone, names: list[str]) -> list[dict]:
     targets = [cfg.account(n) for n in names] if names else list(cfg.accounts.values())
     rows: list[dict] = []
     for account in targets:
-        remote = sanitize_remote_name(account.name)
+        remote = rclone.remote_name(account.name)
         usage = rclone.about(remote)
         rows.append(
             {
@@ -55,7 +55,7 @@ def ls(
     dirs_only: bool = False,
 ) -> list[dict]:
     account = cfg.account(name)
-    remote = sanitize_remote_name(account.name)
+    remote = rclone.remote_name(account.name)
     return rclone.list(
         remote,
         remote_path,
@@ -67,12 +67,12 @@ def ls(
 
 def mkdir(cfg: Config, rclone: Rclone, *, name: str, remote_path: str) -> None:
     account = cfg.account(name)
-    rclone.mkdir(sanitize_remote_name(account.name), remote_path)
+    rclone.mkdir(rclone.remote_name(account.name), remote_path)
 
 
 def rm(cfg: Config, rclone: Rclone, *, name: str, remote_path: str, recursive: bool = False) -> None:
     account = cfg.account(name)
-    remote = sanitize_remote_name(account.name)
+    remote = rclone.remote_name(account.name)
     if recursive:
         rclone.purge(remote, remote_path)
         return
@@ -102,7 +102,7 @@ def upload(
     remote_path: str,
 ) -> None:
     account = cfg.account(name)
-    remote = sanitize_remote_name(account.name)
+    remote = rclone.remote_name(account.name)
     target = remote + ":"
     stripped = _normalise_remote_target(remote_path).strip("/")
     if stripped:
@@ -122,7 +122,7 @@ def download(
     local: str,
 ) -> None:
     account = cfg.account(name)
-    remote = sanitize_remote_name(account.name)
+    remote = rclone.remote_name(account.name)
     source = _normalise_remote_target(remote_path).strip("/")
     src = remote if not source else f"{remote}:{source}"
     entries = rclone.list(remote, source or "/", dirs_only=True, recursive=False)
@@ -143,7 +143,7 @@ def sync_path(
     mode: str = "push",
 ) -> None:
     account = cfg.account(name)
-    remote = sanitize_remote_name(account.name)
+    remote = rclone.remote_name(account.name)
     stripped = _normalise_remote_target(remote_path).strip("/")
     dest = f"{remote}:{stripped}" if stripped else f"{remote}:"
     local_abs = os.path.abspath(local)

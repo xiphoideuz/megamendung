@@ -5,6 +5,7 @@ Format (``~/.config/megamendung/megamendung.conf``)::
     [settings]
     base_email = aslamyfaniadora@gmail.com
     base_name  = mega
+    remote_prefix =            # optional namespace for rclone remotes megamendung creates
     last_alias_index = 3
 
     [account.mega1]
@@ -24,6 +25,7 @@ Format (``~/.config/megamendung/megamendung.conf``)::
 
 from __future__ import annotations
 
+import os
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -33,6 +35,32 @@ from .paths import default_config_path
 
 ACCOUNT_SECTION_PREFIX = "account."
 JOB_SECTION_PREFIX = "sync."
+
+RCLONE_PREFIX_ENV = "MEGAMENDUNG_RCLONE_PREFIX"
+
+
+def _load_dotenv(path: Path) -> None:
+    """Minimal KEY=VALUE loader for an optional ``.env`` next to the config.
+
+    Exported shell variables win: values only land in ``os.environ`` when not
+    already set (``setdefault``). Lines may use ``export KEY=...`` or bare
+    ``KEY=...``; quotes are stripped; comments and blanks ignored.
+    """
+    if not path.is_file():
+        return
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        if key:
+            os.environ.setdefault(key, value)
 
 
 def utcnow() -> str:
@@ -114,6 +142,7 @@ class Config:
     @classmethod
     def load(cls, path: Path | None = None) -> "Config":
         path = Path(path or default_config_path())
+        _load_dotenv(path.parent / ".env")
         cfg = cls(path=path)
         parser = ConfigParser(interpolation=None)
         parser.read(path)
@@ -181,3 +210,15 @@ class Config:
             raise KeyError("set settings.base_email before creating accounts")
         local, _, domain = base_email.partition("@")
         return f"{local}+{base}{index}@{domain}"
+
+
+def resolve_remote_prefix(cfg: Config) -> str:
+    """Namespace for the rclone remotes megamendung provisions.
+
+    Precedence: env ``MEGAMENDUNG_RCLONE_PREFIX`` (or ``<config-dir>/.env``,
+    loaded by ``Config.load``) over the ``remote_prefix`` setting.
+    """
+    return (
+        os.environ.get(RCLONE_PREFIX_ENV, "").strip()
+        or cfg.settings.get("remote_prefix", "").strip()
+    )
