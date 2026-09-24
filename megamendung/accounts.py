@@ -1,13 +1,11 @@
 """Account lifecycle: list, add, import, create, verify, remove.
 
-Credentials are always stored rclone-obscured in the account registry; the
-rclone ``mega`` remote for each account lives in megamendung's own rclone
-config and is (re)provisioned here.
-"""
+Credentials are always stored rclone-obscured in the account registry,
+which lives in the single portable ``megamendung.conf`` file (alongside
+the rclone ``mega`` remotes and any pending signup state)."""
 
 from __future__ import annotations
 
-import json
 import secrets
 import string
 from dataclasses import dataclass
@@ -17,32 +15,23 @@ from . import mega_api
 from .config import Account, Config, utcnow
 from .rclone_backend import Rclone, RcloneError, sanitize_remote_name
 
-PENDING_FILE = "pending.json"
-
 _PW_CHARS = string.ascii_letters + string.digits + "!@#$%^&*_-"
+
+
+def random_password(length: int = 20) -> str:
+    return "".join(secrets.choice(_PW_CHARS) for _ in range(length))
 
 
 class AccountError(Exception):
     """Raised for account lifecycle problems."""
 
 
-def _pending_path(cfg: Config) -> Path:
-    return cfg.path.parent / PENDING_FILE
-
-
 def _load_pending(cfg: Config) -> dict[str, str]:
-    p = _pending_path(cfg)
-    if p.exists():
-        return json.loads(p.read_text())
-    return {}
+    return dict(cfg.pending)
 
 
 def _save_pending(cfg: Config, pending: dict[str, str]) -> None:
-    _pending_path(cfg).write_text(json.dumps(pending, indent=2))
-
-
-def random_password(length: int = 20) -> str:
-    return "".join(secrets.choice(_PW_CHARS) for _ in range(length))
+    cfg.pending = pending
 
 
 @dataclass
@@ -343,3 +332,23 @@ def show_account(cfg: Config, rclone: Rclone, *, name: str) -> dict:
         "notes": account.notes,
         "rclone_remote": remote,
     }
+
+
+def export_accounts(cfg: Config, rclone: Rclone) -> list[dict]:
+    """Dump accounts as name | email | plaintext password | recovery key."""
+    pending = _load_pending(cfg)
+    rows: list[dict] = []
+    for account in cfg.accounts.values():
+        try:
+            plain = _reveal(rclone, account.password)
+        except RcloneError:
+            plain = ""
+        rows.append(
+            {
+                "name": account.name,
+                "email": account.email,
+                "password": plain,
+                "recovery_key": pending.get(account.name, ""),
+            }
+        )
+    return rows

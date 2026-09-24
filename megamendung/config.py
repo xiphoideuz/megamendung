@@ -136,6 +136,7 @@ class Config:
     settings: dict[str, str] = field(default_factory=dict)
     accounts: dict[str, Account] = field(default_factory=dict)
     jobs: dict[str, SyncJob] = field(default_factory=dict)
+    pending: dict[str, str] = field(default_factory=dict)  # unverified signup state
 
     # -- loading ---------------------------------------------------------
 
@@ -155,6 +156,8 @@ class Config:
             elif section.startswith(JOB_SECTION_PREFIX):
                 name = section[len(JOB_SECTION_PREFIX):]
                 cfg.jobs[name] = SyncJob.from_section(name, dict(parser[section]))
+            elif section == "pending":
+                cfg.pending = dict(parser[section])
         return cfg
 
     def save(self) -> None:
@@ -165,6 +168,8 @@ class Config:
             account.to_section(parser)
         for job in self.jobs.values():
             job.to_section(parser)
+        if self.pending:
+            parser["pending"] = self.pending
         with open(self.path, "w") as fh:
             parser.write(fh)
 

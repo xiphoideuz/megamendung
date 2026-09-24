@@ -20,7 +20,9 @@ def default_config_path() -> Path:
 
 
 def default_rclone_config_path() -> Path:
-    return default_config_dir() / "rclone.conf"
+    # The rclone config is the same portable megamendung.conf, so one
+    # file transfers everything (accounts + mega remotes).
+    return default_config_path()
 
 
 def default_state_path() -> Path:

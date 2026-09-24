@@ -2,10 +2,15 @@
 
 ## 2.0.1 (2026-09-23)
 ### Added
-- Rclone remote prefix: namespace the remotes megamendung creates in its
-  rclone.conf via `remote_prefix` in `[settings]`, a
-  `MEGAMENDUNG_RCLONE_PREFIX` env var, or a `<config-dir>/.env` file
-  (precedence in that order).
+- Single portable config file: ``megamendung.conf`` now holds the account
+  registry, the rclone ``mega`` remotes, and any pending signup state in
+  one transferable file (the old separate ``rclone.conf``/``pending.json``
+  are gone).
+- ``accounts export`` mode: dump name, email, plaintext password and
+  recovery key as a table (``--force``) or JSON/``--file``.
+- Rclone remote prefix: namespace the remotes megamendung creates via
+  `remote_prefix` in `[settings]`, a ``MEGAMENDUNG_RCLONE_PREFIX`` env var,
+  or a `<config-dir>/.env` file (precedence in that order).
 
 ### Changed
 - Split the web GUI out of this repo into the separate

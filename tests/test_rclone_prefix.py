@@ -76,6 +76,8 @@ def test_shell_env_beats_dotenv(tmp_path: Path, monkeypatch):
 
 
 def _stub_rclone_conf(path: Path, remotes: dict[str, str]) -> Path:
+    """Write a megamendung.conf containing [name] mega remotes (the
+    portable single-file config) so scan_rclone_conf finds them."""
     parts = []
     for name, email in remotes.items():
         parts += [f"[{name}]", "type = mega", f"user = {email}", "pass = XXXX", ""]
@@ -91,7 +93,7 @@ def test_list_accounts_matches_prefixed_remotes(tmp_path: Path, monkeypatch):
         name="mega1", email="me+mega1@gmail.com", password="XXXX", verified=True
     )
     rclone_conf = _stub_rclone_conf(
-        tmp_path / "rclone.conf",
+        conf,
         {"mg_mega1": "me+mega1@gmail.com", "unrelated": "other@gmail.com"},
     )
     rclone = Rclone(config_path=rclone_conf, prefix="mg_")
@@ -112,7 +114,7 @@ def test_list_accounts_without_prefix_matches_plain(tmp_path: Path, monkeypatch)
     cfg.accounts["mega1"] = Account(
         name="mega1", email="me+mega1@gmail.com", password="XXXX", verified=True
     )
-    rclone_conf = _stub_rclone_conf(tmp_path / "rclone.conf", {"mega1": "me+mega1@gmail.com"})
+    rclone_conf = _stub_rclone_conf(conf, {"mega1": "me+mega1@gmail.com"})
     rows = list_accounts(cfg, Rclone(config_path=rclone_conf))
     names = [r["name"] for r in rows]
     assert names == ["mega1"]

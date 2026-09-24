@@ -192,29 +192,45 @@ repo.
     mode           = push
 
 Passwords are stored **rclone-obscured** (as `pass` in an rclone remote
-config would be). The rclone remotes megamendung manages live in its own
-config, `~/.config/megamendung/rclone.conf` — your personal
-`~/.config/rclone/rclone.conf` is left untouched.
+config would be). Everything — account registry, the rclone ``mega``
+remotes, and any pending signup state — lives in this single
+``megamendung.conf`` file, so you can copy it around and it just
+works (like ``rclone.conf``). Your personal ``~/.config/rclone/rclone.conf`` is left untouched.
 
 ### Rclone remote prefix
 
-Accounts become rclone remotes named after the account (e.g. `mega1`). To
-namespace them in `~/.config/megamendung/rclone.conf` (useful when mixing
+Accounts become rclone remotes named after the account (e.g. ``mega1``). To
+namespace them in the same ``megamendung.conf`` (useful when mixing
 megamendung with other tooling on the same config), set a prefix, in order of
 precedence:
 
-1. the `MEGAMENDUNG_RCLONE_PREFIX` environment variable,
-2. a `MEGAMENDUNG_RCLONE_PREFIX=...` line in `<config-dir>/.env` (a plain
-   `KEY=VALUE` file loaded at startup),
-3. `remote_prefix = ...` in `[settings]`.
+1. the ``MEGAMENDUNG_RCLONE_PREFIX`` environment variable,
+2. a ``MEGAMENDUNG_RCLONE_PREFIX=...`` line in ``<config-dir>/.env`` (a plain
+   ``KEY=VALUE`` file loaded at startup),
+3. ``remote_prefix = ...`` in ``[settings]``.
 
 Every managed remote is then created and addressed as
-`<prefix><account>` (e.g. prefix `mg_` → remote `mg_mega1`) for operations,
-`refresh`, and `remove`. Account names in the registry stay unprefixed.
+``<prefix><account>`` (e.g. prefix ``mg_`` → remote ``mg_mega1``) for operations,
+``refresh``, and ``remove``. Account names in the registry stay unprefixed.
 
 Override the config directory for any command with the
-`MEGAMENDUNG_CONFIG_DIR` environment variable, or point at explicit files
-with `--config` and `--rclone-config` global flags.
+``MEGAMENDUNG_CONFIG_DIR`` environment variable, or point at an explicit
+file with ``--config``.
+
+### Export
+
+Dump accounts as a table or JSON (plaintext credentials are sensitive —
+pass ``--force``):
+
+```sh
+megamendung accounts export --force            # table: name, email, password, recovery key
+megamendung accounts export --force --json     # JSON array
+megamendung accounts export --force --file out.json
+```
+
+The ``recovery_key`` column holds the pending-signup state (from
+``accounts create``) that ``accounts verify`` needs; it is empty for
+verified accounts.
 
 ## Ported from mega_manager
 

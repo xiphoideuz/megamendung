@@ -23,6 +23,7 @@ from .accounts import (
     AccountError,
     add_account,
     create_accounts,
+    export_accounts,
     import_accounts,
     list_accounts,
     remove_account,
@@ -195,6 +196,31 @@ def cmd_accounts_show(args, cfg: Config, rclone: Rclone) -> int:
 def cmd_accounts_remove(args, cfg: Config, rclone: Rclone) -> int:
     remove_account(cfg, rclone, name=args.name)
     _emit(f"removed {args.name}")
+    return 0
+
+
+def cmd_accounts_export(args, cfg: Config, rclone: Rclone) -> int:
+    if not args.force:
+        raise CliError(
+            "plaintext credentials are sensitive -- use --force to export"
+        )
+    rows = export_accounts(cfg, rclone)
+    if args.file:
+        Path(args.file).expanduser().write_text(
+            json.dumps(rows, indent=2, default=str)
+        )
+        _emit(f"exported {len(rows)} account(s) to {args.file}")
+        return 0
+    if args.json:
+        print(json.dumps(rows, indent=2, default=str))
+        return 0
+    _emit(f"{'NAME':<12} {'EMAIL':<42} {'PASSWORD':<24} RECOVERY KEY")
+    _emit("-" * 110)
+    for row in rows:
+        _emit(
+            f"{row['name']:<12} {row['email']:<42} {row['password']:<24} "
+            f"{row['recovery_key']}"
+        )
     return 0
 
 
@@ -380,14 +406,15 @@ def build_parser() -> argparse.ArgumentParser:
             "  megamendung sync mega1 /data/camera /Root/camera --mode push\n"
             "  megamendung compress /data/media\n"
             "  megamendung pair\n"
-            "  megamendung connect https://megamendung-web.<your-subdomain>.workers.dev\n"
+            "  megamendung connect https://megamendung-gui.<your-subdomain>.workers.dev\n"
+            "  megamendung accounts export --force\n"
         ),
     )
     parser.add_argument("--version", action="version", version=f"megamendung {__version__}")
     parser.add_argument("--config", type=str, default=None, help="path to megamendung.conf")
     parser.add_argument(
         "--rclone-config", type=str, default=None,
-        help="path to the rclone config megamendung manages",
+        help="(deprecated: megamendung.conf is now the rclone config)",
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="verbose output")
 
@@ -432,6 +459,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     a_remove = acc_sub.add_parser("remove", help="remove an account from the registry and its rclone remote")
     a_remove.add_argument("name")
+
+    a_export = acc_sub.add_parser("export", help="export account name, email, password and recovery key")
+    a_export.add_argument("--json", action="store_true", help="machine-readable JSON output")
+    a_export.add_argument("--file", type=str, default=None, help="write the export to FILE (JSON)")
+    a_export.add_argument("--force", action="store_true", help="allow plaintext credential export")
 
     p_refresh = sub.add_parser("refresh", help="login-refresh all (or named) accounts; cron-friendly exit code")
     p_refresh.add_argument("names", nargs="*")
@@ -528,6 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             "verify": cmd_accounts_verify,
             "show": cmd_accounts_show,
             "remove": cmd_accounts_remove,
+            "export": cmd_accounts_export,
         },
         "refresh": cmd_refresh,
         "df": cmd_df,
