@@ -163,6 +163,9 @@ class Config:
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         parser = ConfigParser(interpolation=None)
+        # keep any sections we don't manage (e.g. rclone remotes that live
+        # in the same portable file) by reading the existing file first.
+        parser.read(self.path)
         parser["settings"] = self.settings
         for account in self.accounts.values():
             account.to_section(parser)
